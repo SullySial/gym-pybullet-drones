@@ -1,6 +1,6 @@
 """Script for reinforcement learning of drone travelling to goal, using `gym_pybullet_drones`'s Gymnasium interface.
 
-Only class HoverAviary is used as learning env for the PPO algorithm.
+Only class HoverToGoal is used as learning env for the PPO algorithm.
 
 Example
 -------
@@ -27,20 +27,17 @@ from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnRewar
 from stable_baselines3.common.evaluation import evaluate_policy
 
 from gym_pybullet_drones.utils.Logger import Logger
-from gym_pybullet_drones.envs.HoverAviary import HoverAviary # <-- Need to adjust this environment/make new env for assignment 5
+from gym_pybullet_drones.envs.HoverToGoal import HoverToGoal # <--- NEW environment I created for travelling to XYZ pos.
 from gym_pybullet_drones.utils.utils import sync, str2bool
 from gym_pybullet_drones.utils.enums import ObservationType, ActionType
 
-DEFAULT_GUI = True
+DEFAULT_GUI = False
 DEFAULT_RECORD_VIDEO = False
 DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
 
-DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
-
-# |||                                                                                                  ||| 
-# vvv ((Might)) need to change this value for 3 dimensional movement for assignment 5 - should be avail somewhere in 'ActionType' vvv #
-DEFAULT_ACT = ActionType('one_d_rpm') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid' 
+DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb' <--- could possible use image camera vision 'rgb'
+DEFAULT_ACT = ActionType('rpm') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid' <-- changed it to 'rpm' for 3D movement
 
 DEFAULT_AGENTS = 2
 DEFAULT_MA = False
@@ -52,12 +49,12 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
         os.makedirs(filename+'/')
 
     if not multiagent:
-        train_env = make_vec_env(HoverAviary,                                       # <-- Again, we'll need to adjust this environment/make new env for assignment 5
+        train_env = make_vec_env(HoverToGoal,                                       # <-- Again, we'll need to adjust this environment/make new env for assignment 5
                                  env_kwargs=dict(obs=DEFAULT_OBS, act=DEFAULT_ACT),
                                  n_envs=1,
                                  seed=0
                                  )
-        eval_env = HoverAviary(obs=DEFAULT_OBS, act=DEFAULT_ACT)
+        eval_env = HoverToGoal(obs=DEFAULT_OBS, act=DEFAULT_ACT, gui=DEFAULT_GUI)
 
     #### Check the environment's spaces ########################
     print('[INFO] Action space:', train_env.action_space)
@@ -70,8 +67,8 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                 verbose=1)
     
     #### Target cumulative rewards (problem-dependent) ##########
-    if DEFAULT_ACT == ActionType.ONE_D_RPM: # <--- Might need to change this value for 3 dimensional movement - should be avail somewhere in 'ActionType'
-        target_reward = 474.15 if not multiagent else 949.5 # Need to adjust target reward for this complex task in assignment 5
+    if DEFAULT_ACT == ActionType.RPM: # <--- Changed this value to 'RPM' for 3 dimensional movement
+        target_reward = 474.15 if not multiagent else 949.5 # <--- Need to adjust target reward for this complex task in assignment 5
     else:
         target_reward = 467. if not multiagent else 920.
     callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=target_reward,
@@ -83,8 +80,8 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                                  log_path=filename+'/',
                                  eval_freq=int(1000),
                                  deterministic=True,
-                                 render=False)
-    model.learn(total_timesteps=int(1e7) if local else int(1e2), # <--- very important, means training stops after 1e7 timesteps, could be adjusted
+                                 render=True)              # <--- can set to True if you want to view training (slower)
+    model.learn(total_timesteps=int(1e7) if local else int(1e2), # <--- very important, means training stops after (before change) 1e7 timesteps, could be adjusted
                 callback=eval_callback,
                 log_interval=100)
     
@@ -114,11 +111,11 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
 
     #### Show (and record a video of) the model's performance ##
     if not multiagent:
-        test_env = HoverAviary(gui=gui,                                 # <--- again, we'll need to change 'test_env' to our suitable training env
+        test_env = HoverToGoal(gui=gui,                                 # <--- again, we'll need to change 'test_env' to our suitable training env
                                obs=DEFAULT_OBS,
                                act=DEFAULT_ACT,
                                record=record_video)
-        test_env_nogui = HoverAviary(obs=DEFAULT_OBS, act=DEFAULT_ACT)
+        test_env_nogui = HoverToGoal(obs=DEFAULT_OBS, act=DEFAULT_ACT)
 
     logger = Logger(logging_freq_hz=int(test_env.CTRL_FREQ),
                 num_drones=DEFAULT_AGENTS if multiagent else 1,
