@@ -16,6 +16,11 @@ register(
 )
 
 register(
+    id='hover-to-goal-v0',
+    entry_point='gym_pybullet_drones.envs:HoverToGoal',
+)
+
+register(
     id='multihover-aviary-v0',
     entry_point='gym_pybullet_drones.envs:MultiHoverAviary',
 )
