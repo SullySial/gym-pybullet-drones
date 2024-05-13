@@ -19,6 +19,7 @@ import time
 from datetime import datetime
 import argparse
 import gymnasium as gym
+# import SimpleBase
 import numpy as np
 import torch
 
@@ -36,7 +37,6 @@ import torch.optim as optim
 # from stable_baselines3.common.env_util import make_vec_env
 # from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnRewardThreshold, StopTrainingOnMaxEpisodes
 # from stable_baselines3.common.evaluation import evaluate_policy
-
 from gym_pybullet_drones.utils.Logger import Logger
 from gym_pybullet_drones.envs.SimpleBase import SimpleBase # <--- New environment I created for travelling to XYZ pos.
 from gym_pybullet_drones.utils.utils import sync, str2bool
@@ -54,12 +54,12 @@ DEFAULT_AGENTS = 2
 DEFAULT_MA = False
 PARALLEL_ENV = 4
 
-TRAIN = False  # if set to false will skip training, load the last saved model and use that for testing
+TRAIN = True  # if set to false will skip training, load the last saved model and use that for testing
 
 # Hyper parameters that will be used in the DQN algorithm
 
 # EPISODES = 2500                 # number of episodes to run the training for
-EPISODES = 8000
+EPISODES = 6000
 LEARNING_RATE = 0.00025         # the learning rate for optimising the neural network weights
 MEM_SIZE = 50000                # maximum size of the replay memory - will start overwritting values once this is exceed
 REPLAY_START_SIZE = 10000       # The amount of samples to fill the replay memory with before we start learning
@@ -161,7 +161,7 @@ class DQN_Solver:
             eps_threshold = 1.0
         # if we rolled a value lower than epsilon sample a random action
         if random.random() < eps_threshold:
-            return np.random.choice(np.array(range(7)), p=[0.2,0.05,0.15,0.15,0.15,0.15,0.15])    # sample random action with set priors (otherwise learning will take forever)
+            return np.random.choice(np.array(range(7)), p=[0.45,0.05,0.1,0.1,0.1,0.1,0.1])    # sample random action with set priors (otherwise learning will take forever)
 
         # otherwise policy network, Q, chooses action with highest estimated Q-value so far
         state = torch.tensor(observation).float().detach()
@@ -169,16 +169,11 @@ class DQN_Solver:
         # print("state.unsqueeze(0): ", state)
         # print("tensor dim: ", state.dim())
         # print("tensor shape:", state.shape[0])
-        if state.dim() != 2:
-            print("[WARNING] incorrect tensor dim, using random val")
-            return np.random.choice(np.array(range(7)), p=[0.2,0.05,0.15,0.15,0.15,0.15,0.15]) 
         self.policy_network.eval()  # only need forward pass
         with torch.no_grad():       # so we don't compute gradients - save memory and computation
             ################ retrieve q-values from policy network, Q ################################
             q_values = self.policy_network(state)
             ##########################################################################################
-        # print("q values: ", q_values)
-        state_ = state
         return torch.argmax(q_values).item()
 
     # main training loop
@@ -235,9 +230,9 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
 
     # eval_env = SimpleBase(obs=DEFAULT_OBS, act=DEFAULT_ACT, gui=True)
     if TRAIN:
-        # env = gym.make("SimpleDriving-v0", apply_api_compatibility=True, renders=False, isDiscrete=True)
+        # env = gym.make("simple-base-v0", apply_api_compatibility=True, gui=False)
         # env = gym.make("SimpleDriving-v0")
-        env = SimpleBase(gui=False) # <--- Set to True to see training sim
+        env = SimpleBase(gui=True) # <--- Set to True to see training sim
         # set manual seeds so we get same behaviour everytime - so that when you change your hyper parameters you can attribute the effect to those changes
         env.action_space.seed(0)
         random.seed(0)
@@ -250,7 +245,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
 
         for i in range(EPISODES):
             state = env.reset()  # this needs to be called once at the start before sending any actions
-            state = state[0]
+            # state = state[0]
             while True:
                 # sampling loop - sample random actions and add them to the replay buffer
                 action = agent.choose_action(state)
@@ -296,16 +291,19 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
     # Test trained policy
     # env = gym.make("SimpleDriving-v0", apply_api_compatibility=True, renders=True, isDiscrete=True)
     env = SimpleBase(gui=True)
+    # env = gym.make("simple-base-v0", apply_api_compatibility=True, gui=False)
     agent = DQN_Solver(env)
     agent.policy_network.load_state_dict(torch.load("policy_network.pkl"))
     state = env.reset()
-    state = state[0]
+    # state = state[0]
     agent.policy_network.eval()
 
     while True:
         with torch.no_grad():
+            print("state: ", state)
             q_values = agent.policy_network(torch.tensor(state, dtype=torch.float32))
         action = torch.argmax(q_values).item() # select action with highest predicted q-value
+        print("action: ", action)
         state, reward, done, info = env.step(action)
         env.render()
         time.sleep(1/30)

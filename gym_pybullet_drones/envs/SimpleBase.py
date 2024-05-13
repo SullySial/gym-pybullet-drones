@@ -14,6 +14,7 @@ import pybullet_data
 import gymnasium as gym
 from gymnasium import spaces
 from gym_pybullet_drones.utils.enums import DroneModel, Physics, ImageType
+from gym_pybullet_drones.assets.goal import Goal
 
 class SimpleBase(gym.Env):
     """Base class for "drone DQN" Gym environments."""
@@ -65,11 +66,13 @@ class SimpleBase(gym.Env):
 
         """
         #### Targets (Changeable) #############################################
-        self.TARGET_POS = np.array([1,1,1]) #### <--- Here's the line that indicates goal position (in this case, I changed x=1, y=2, z=3 for drone)
+        self.TARGET_POS = np.array([2,2,2]) #### <--- Here's the line that indicates goal position (in this case, I changed x=1, y=2, z=3 for drone)
         self.TARGET_ORIENTATION = np.array([0,0,0])
         self.EPISODE_LEN_SEC = 20            #### <--- Change the length of the episode in seconds 
         self.LOG_ANGULAR_VELOCITY = np.zeros((1, 3))
         self.LOG_RPMS = np.zeros((1, 4))
+        self.goal_object = None
+        self.goal = None
         #### Constants #############################################
         self.G = 9.8
         self.RAD2DEG = 180/np.pi
@@ -205,7 +208,7 @@ class SimpleBase(gym.Env):
         # initial_obs = self._computeObs()
         initial_obs = self._computeExtendedObs()
         initial_info = self._computeInfo()
-        return np.array(initial_obs, dtype=np.float32) # initial_obs, initial_info
+        return np.array(initial_obs) #, dtype=np.float32) # initial_obs, initial_info
     
     ################################################################################
     
@@ -260,7 +263,7 @@ class SimpleBase(gym.Env):
         info = self._computeInfo()
         #### Advance the step counter ##############################
         self.step_counter = self.step_counter + (1 * self.PYB_STEPS_PER_CTRL)
-        return obs, reward, terminated, info
+        return obs, reward, terminated, dict()
 
 
     ################################################################################
@@ -278,9 +281,14 @@ class SimpleBase(gym.Env):
             for i in range (self.NUM_DRONES):
                 if self.PHYSICS == Physics.PYB:
                     # self._physics(clipped_action[i, :], i)
-                    self._physics(clipped_action[:], i)
+                    self._physics(clipped_action, i)
             #### PyBullet computes the new state ###
             p.stepSimulation(physicsClientId=self.CLIENT)
+            #### Buffer with brake action ####
+            # action_buffer = [0,0,0]
+            # clipped_action_buffer = self._preprocessAction(action_buffer)
+            # self._physics(clipped_action_buffer,0)
+            # p.stepSimulation(physicsClientId=self.CLIENT)
 
     ################################################################################
         
@@ -317,9 +325,9 @@ class SimpleBase(gym.Env):
             value = action[0]
             if value == 1:
                 # Move to the left
-                rpm[0] = self.HOVER_RPM * (1+0.05*abs(value))
+                rpm[0] = self.HOVER_RPM * (1+0.0125*abs(value))
                 rpm[1] = self.HOVER_RPM 
-                rpm[2] = self.HOVER_RPM * (1+0.05*abs(value))
+                rpm[2] = self.HOVER_RPM * (1+0.0125*abs(value))
                 rpm[3] = self.HOVER_RPM 
                 # print("[INFO] Chosen RPM (left): ", rpm)
 
@@ -327,9 +335,9 @@ class SimpleBase(gym.Env):
             else:
                 # Move to the right
                 rpm[0] = self.HOVER_RPM 
-                rpm[1] = self.HOVER_RPM * (1+0.05*abs(value))
+                rpm[1] = self.HOVER_RPM * (1+0.0125*abs(value))
                 rpm[2] = self.HOVER_RPM 
-                rpm[3] = self.HOVER_RPM * (1+0.05*abs(value))
+                rpm[3] = self.HOVER_RPM * (1+0.0125*abs(value))
                 # print("[INFO] Chosen RPM (right): ", rpm)
 
                 return rpm
@@ -337,8 +345,8 @@ class SimpleBase(gym.Env):
             value = action[1]
             if value == 1:
                 # Move forward
-                rpm[0] = self.HOVER_RPM * (1+0.05*abs(value))
-                rpm[1] = self.HOVER_RPM * (1+0.05*abs(value))
+                rpm[0] = self.HOVER_RPM * (1+0.0125*abs(value))
+                rpm[1] = self.HOVER_RPM * (1+0.0125*abs(value))
                 rpm[2] = self.HOVER_RPM 
                 rpm[3] = self.HOVER_RPM 
                 # print("[INFO] Chosen RPM (forward): ", rpm)
@@ -348,8 +356,8 @@ class SimpleBase(gym.Env):
                 # Move backwards
                 rpm[0] = self.HOVER_RPM 
                 rpm[1] = self.HOVER_RPM 
-                rpm[2] = self.HOVER_RPM * (1+0.05*abs(value))
-                rpm[3] = self.HOVER_RPM * (1+0.05*abs(value))
+                rpm[2] = self.HOVER_RPM * (1+0.0125*abs(value))
+                rpm[3] = self.HOVER_RPM * (1+0.0125*abs(value))
                 # print("[INFO] Chosen RPM (backward): ", rpm)
 
                 return rpm
@@ -357,19 +365,19 @@ class SimpleBase(gym.Env):
             value = action[2]
             if value == 1:
                 # Move up
-                rpm[0] = self.HOVER_RPM * (1+0.05*abs(value))
-                rpm[1] = self.HOVER_RPM * (1+0.05*abs(value))
-                rpm[2] = self.HOVER_RPM * (1+0.05*abs(value))
-                rpm[3] = self.HOVER_RPM * (1+0.05*abs(value))
+                rpm[0] = self.HOVER_RPM * (1+0.0125*abs(value))
+                rpm[1] = self.HOVER_RPM * (1+0.0125*abs(value))
+                rpm[2] = self.HOVER_RPM * (1+0.0125*abs(value))
+                rpm[3] = self.HOVER_RPM * (1+0.0125*abs(value))
                 # print("[INFO] Chosen RPM (up): ", rpm)
 
                 return rpm
             else:
                 # Move down
-                rpm[0] = self.HOVER_RPM * (1+0.05*value)
-                rpm[1] = self.HOVER_RPM * (1+0.05*value)
-                rpm[2] = self.HOVER_RPM * (1+0.05*value)
-                rpm[3] = self.HOVER_RPM * (1+0.05*value)
+                rpm[0] = self.HOVER_RPM * (1+0.0125*value)
+                rpm[1] = self.HOVER_RPM * (1+0.0125*value)
+                rpm[2] = self.HOVER_RPM * (1+0.0125*value)
+                rpm[3] = self.HOVER_RPM * (1+0.0125*value)
                 # print("[INFO] Chosen RPM (down): ", rpm)
 
                 return rpm
@@ -416,12 +424,12 @@ class SimpleBase(gym.Env):
                                  flags=p.LINK_FRAME,
                                  physicsClientId=self.CLIENT
                                  )
-        p.applyExternalTorque(self.DRONE_IDS[nth_drone],
-                              4,
-                              torqueObj=[0, 0, z_torque],
-                              flags=p.LINK_FRAME,
-                              physicsClientId=self.CLIENT
-                              )
+        # p.applyExternalTorque(self.DRONE_IDS[nth_drone],
+        #                       4,
+        #                       torqueObj=[0, 0, z_torque],
+        #                       flags=p.LINK_FRAME,
+        #                       physicsClientId=self.CLIENT
+        #                       )
 
     ################################################################################
 
@@ -490,8 +498,17 @@ class SimpleBase(gym.Env):
 
     def _computeExtendedObs(self):
         state = self._getDroneStateVector(0)
-        goal_pos_relative = [self.TARGET_POS[i] - state[i] for i in range(3)]
-        observation = [goal_pos_relative[0], goal_pos_relative[1], goal_pos_relative[2]]
+        goalpos, goalorn = p.getBasePositionAndOrientation(self.goal_object.goal)
+        # dronePos = self.pos[:]
+        # droneOrn = self.quat[:]
+        dronePos = state[0:3]
+        droneOrn = state[3:7]
+        # print("dronepos: ", dronePos, ", droneorn: ", droneOrn)
+        invDronePos, invDroneOrn = p.invertTransform(dronePos, droneOrn)
+        goalPosInDrone, goalOrnInDrone = p.multiplyTransforms(invDronePos, invDroneOrn, goalpos, goalorn)
+        # goal_pos_relative = [self.TARGET_POS[i] - state[i] for i in range(3)]
+        # observation = [goal_pos_relative[0], goal_pos_relative[1], goal_pos_relative[2]]
+        observation = [goalPosInDrone[0], goalPosInDrone[1], goalPosInDrone[2]]
         return observation
         
     ################################################################################
@@ -520,13 +537,37 @@ class SimpleBase(gym.Env):
             The reward.
 
         """
+        # state = self._getDroneStateVector(0)
+        # # ret = max(0, 2 - np.linalg.norm(self.TARGET_POS-state[0:3])**4)
+        # # return ret
+        # ret = -np.linalg.norm(self.TARGET_POS-state[0:3])
+        # if np.linalg.norm(self.TARGET_POS-state[0:3]) < 0.9:
+        #     ret+= 50
+        #     print("[INFO] Reached Target")
+
         state = self._getDroneStateVector(0)
-        # ret = max(0, 2 - np.linalg.norm(self.TARGET_POS-state[0:3])**4)
-        # return ret
-        ret = -np.linalg.norm(self.TARGET_POS-state[0:3])
-        if np.linalg.norm(self.TARGET_POS-state[0:3]) < .03:
-            ret+= 50
+        target_distance = np.linalg.norm(self.TARGET_POS - state[0:3])
+        
+        # Calculate tilt angle (assuming roll and pitch angles are stored in state[6:8])
+        roll_angle = state[7]
+        pitch_angle = state[8]
+        tilt_angle = np.sqrt(roll_angle ** 2 + pitch_angle ** 2)
+
+        max_allowed_tilt_angle = np.radians(45)
+        tilt_penalty_factor = 10
+        # Penalize for excessive tilt angle
+        tilt_penalty = max(0, tilt_angle - max_allowed_tilt_angle) * tilt_penalty_factor
+        
+        # Reward based on distance to target
+        ret = -target_distance
+        
+        # Add a bonus when target is reached
+        if target_distance < 0.9:
+            ret += 50
             print("[INFO] Reached Target")
+
+        # Add the tilt penalty to the reward
+        ret -= tilt_penalty
 
         return ret
     
@@ -542,7 +583,7 @@ class SimpleBase(gym.Env):
 
         """
         state = self._getDroneStateVector(0)
-        if np.linalg.norm(self.TARGET_POS-state[0:3]) < .03: # < --- Could change to higher number
+        if np.linalg.norm(self.TARGET_POS-state[0:3]) < 0.9: # < --- Could change to higher number
             return True
         else:
             truncated = self._computeTruncated()
@@ -566,9 +607,9 @@ class SimpleBase(gym.Env):
         #     return True
 
         if (np.linalg.norm(self.INIT_XYZS[0][0:2] - state[0:2]) >
-                np.linalg.norm(self.INIT_XYZS[0][0:2] - self.TARGET_POS[0:2]) + 10 or
-                state[2] > self.TARGET_POS[2] + 5 or
-                abs(state[7]) > .8 or abs(state[8]) > .8):
+                np.linalg.norm(self.INIT_XYZS[0][0:2] - self.TARGET_POS[0:2]) + 3 or
+                state[2] > self.TARGET_POS[2] + 2 or
+                abs(state[7]) > 1.2 or abs(state[8]) > 1.2):
             return True
 
         
@@ -633,6 +674,10 @@ class SimpleBase(gym.Env):
                                               flags = p.URDF_USE_INERTIA_FROM_FILE,
                                               physicsClientId=self.CLIENT
                                               ) for i in range(self.NUM_DRONES)])
+        # Set goal to target coordinates
+        self.goal = (self.TARGET_POS[0], self.TARGET_POS[1], self.TARGET_POS[2])
+        # Visual element of the goal
+        self.goal_object = Goal(p, self.goal)
         #### Remove default damping #################################
         # for i in range(self.NUM_DRONES):
         #     p.changeDynamics(self.DRONE_IDS[i], -1, linearDamping=0, angularDamping=0)
@@ -805,3 +850,58 @@ class SimpleBase(gym.Env):
         return self.action_space 
 
     ################################################################################
+
+    def render(self, mode='human'):
+        if mode == "fp_camera":
+            # Base information
+            car_id = self.car.get_ids()
+            proj_matrix = self._p.computeProjectionMatrixFOV(fov=80, aspect=1,
+                                                       nearVal=0.01, farVal=100)
+            pos, ori = [list(l) for l in
+                        self._p.getBasePositionAndOrientation(car_id)]
+            pos[2] = 0.2
+
+            # Rotate camera direction
+            rot_mat = np.array(self._p.getMatrixFromQuaternion(ori)).reshape(3, 3)
+            camera_vec = np.matmul(rot_mat, [1, 0, 0])
+            up_vec = np.matmul(rot_mat, np.array([0, 0, 1]))
+            view_matrix = self._p.computeViewMatrix(pos, pos + camera_vec, up_vec)
+
+            # Display image
+            # frame = self._p.getCameraImage(100, 100, view_matrix, proj_matrix)[2]
+            # frame = np.reshape(frame, (100, 100, 4))
+            (_, _, px, _, _) = self._p.getCameraImage(width=RENDER_WIDTH,
+                                                      height=RENDER_HEIGHT,
+                                                      viewMatrix=view_matrix,
+                                                      projectionMatrix=proj_matrix,
+                                                      renderer=p.ER_BULLET_HARDWARE_OPENGL)
+            frame = np.array(px)
+            frame = frame[:, :, :3]
+            return frame
+            # self.rendered_img.set_data(frame)
+            # plt.draw()
+            # plt.pause(.00001)
+
+        elif mode == "tp_camera":
+            car_id = self.car.get_ids()
+            base_pos, orn = self._p.getBasePositionAndOrientation(car_id)
+            view_matrix = self._p.computeViewMatrixFromYawPitchRoll(cameraTargetPosition=base_pos,
+                                                                    distance=20.0,
+                                                                    yaw=40.0,
+                                                                    pitch=-35,
+                                                                    roll=0,
+                                                                    upAxisIndex=2)
+            proj_matrix = self._p.computeProjectionMatrixFOV(fov=60,
+                                                             aspect=float(RENDER_WIDTH) / RENDER_HEIGHT,
+                                                             nearVal=0.1,
+                                                             farVal=100.0)
+            (_, _, px, _, _) = self._p.getCameraImage(width=RENDER_WIDTH,
+                                                      height=RENDER_HEIGHT,
+                                                      viewMatrix=view_matrix,
+                                                      projectionMatrix=proj_matrix,
+                                                      renderer=p.ER_BULLET_HARDWARE_OPENGL)
+            frame = np.array(px)
+            frame = frame[:, :, :3]
+            return frame
+        else:
+            return np.array([])
