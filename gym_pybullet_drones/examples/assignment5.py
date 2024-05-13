@@ -21,9 +21,9 @@ import argparse
 import gymnasium as gym
 import numpy as np
 import torch
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO # <---- Could implement DQN solver instead of PPO
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnRewardThreshold
+from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnRewardThreshold, StopTrainingOnMaxEpisodes
 from stable_baselines3.common.evaluation import evaluate_policy
 
 from gym_pybullet_drones.utils.Logger import Logger
@@ -31,7 +31,7 @@ from gym_pybullet_drones.envs.HoverToGoal import HoverToGoal # <--- NEW environm
 from gym_pybullet_drones.utils.utils import sync, str2bool
 from gym_pybullet_drones.utils.enums import ObservationType, ActionType
 
-DEFAULT_GUI = False
+DEFAULT_GUI = True
 DEFAULT_RECORD_VIDEO = False
 DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
@@ -41,6 +41,8 @@ DEFAULT_ACT = ActionType('rpm') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one
 
 DEFAULT_AGENTS = 2
 DEFAULT_MA = False
+EPISODES = 1e6
+PARALLEL_ENV = 4
 
 def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True):
 
@@ -51,38 +53,40 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
     if not multiagent:
         train_env = make_vec_env(HoverToGoal,                                       # <-- Again, we'll need to adjust this environment/make new env for assignment 5
                                  env_kwargs=dict(obs=DEFAULT_OBS, act=DEFAULT_ACT),
-                                 n_envs=1,
+                                 n_envs=PARALLEL_ENV,   # <--- changed from 1 to 4
                                  seed=0
                                  )
-        eval_env = HoverToGoal(obs=DEFAULT_OBS, act=DEFAULT_ACT, gui=DEFAULT_GUI)
+        eval_env = HoverToGoal(obs=DEFAULT_OBS, act=DEFAULT_ACT, gui=True) # <---- Set gui=True to view training (slower)
 
     #### Check the environment's spaces ########################
     print('[INFO] Action space:', train_env.action_space)
     print('[INFO] Observation space:', train_env.observation_space)
 
     #### Train the model #######################################
-    model = PPO('MlpPolicy',
+    model = PPO('MlpPolicy',                                               # <---- could utilise DQN solver class from Quiz 3
                 train_env,
                 # tensorboard_log=filename+'/tb/',
                 verbose=1)
     
     #### Target cumulative rewards (problem-dependent) ##########
     if DEFAULT_ACT == ActionType.RPM: # <--- Changed this value to 'RPM' for 3 dimensional movement
-        target_reward = 474.15 if not multiagent else 949.5 # <--- Need to adjust target reward for this complex task in assignment 5
+        target_reward = 700 if not multiagent else 949.5 # <--- Need to adjust target reward for this complex task in assignment 5 (originally 474.15)
     else:
         target_reward = 467. if not multiagent else 920.
     callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=target_reward,
                                                      verbose=1)
+    callback_on_max_ep = StopTrainingOnMaxEpisodes(int(EPISODES / PARALLEL_ENV), 
+                                                   verbose=1)
     eval_callback = EvalCallback(eval_env,
                                  callback_on_new_best=callback_on_best,
                                  verbose=1,
                                  best_model_save_path=filename+'/',
                                  log_path=filename+'/',
-                                 eval_freq=int(1000),
+                                 eval_freq=int(1000/PARALLEL_ENV),
                                  deterministic=True,
-                                 render=True)              # <--- can set to True if you want to view training (slower)
+                                 render=True)              # <--- can set to True if you want to view training (slower), need to also set eval_env
     model.learn(total_timesteps=int(1e7) if local else int(1e2), # <--- very important, means training stops after (before change) 1e7 timesteps, could be adjusted
-                callback=eval_callback,
+                callback=[callback_on_max_ep, eval_callback],
                 log_interval=100)
     
     #### Save the model ########################################
