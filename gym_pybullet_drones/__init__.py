@@ -21,6 +21,11 @@ register(
 )
 
 register(
+    id='simple-base-v0',
+    entry_point='gym_pybullet_drones.envs:SimpleBase',
+)
+
+register(
     id='multihover-aviary-v0',
     entry_point='gym_pybullet_drones.envs:MultiHoverAviary',
 )
