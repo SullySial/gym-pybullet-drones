@@ -59,7 +59,7 @@ TRAIN = True  # if set to false will skip training, load the last saved model an
 # Hyper parameters that will be used in the DQN algorithm
 
 # EPISODES = 2500                 # number of episodes to run the training for
-EPISODES = 6000
+EPISODES = 5000
 LEARNING_RATE = 0.00025         # the learning rate for optimising the neural network weights
 MEM_SIZE = 50000                # maximum size of the replay memory - will start overwritting values once this is exceed
 REPLAY_START_SIZE = 10000       # The amount of samples to fill the replay memory with before we start learning
@@ -161,7 +161,7 @@ class DQN_Solver:
             eps_threshold = 1.0
         # if we rolled a value lower than epsilon sample a random action
         if random.random() < eps_threshold:
-            return np.random.choice(np.array(range(7)), p=[0.45,0.05,0.1,0.1,0.1,0.1,0.1])    # sample random action with set priors (otherwise learning will take forever)
+            return np.random.choice(np.array(range(7)), p=[0.6,0.05,0.07,0.07,0.07,0.07,0.07])    # sample random action with set priors (otherwise learning will take forever)
 
         # otherwise policy network, Q, chooses action with highest estimated Q-value so far
         state = torch.tensor(observation).float().detach()
@@ -232,7 +232,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
     if TRAIN:
         # env = gym.make("simple-base-v0", apply_api_compatibility=True, gui=False)
         # env = gym.make("SimpleDriving-v0")
-        env = SimpleBase(gui=True) # <--- Set to True to see training sim
+        env = SimpleBase(gui=False, gravity = False) # <--- Set to True to see training sim
         # set manual seeds so we get same behaviour everytime - so that when you change your hyper parameters you can attribute the effect to those changes
         env.action_space.seed(0)
         random.seed(0)
@@ -290,7 +290,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
     ############################################################################################
     # Test trained policy
     # env = gym.make("SimpleDriving-v0", apply_api_compatibility=True, renders=True, isDiscrete=True)
-    env = SimpleBase(gui=True)
+    env = SimpleBase(gui=True, gravity = False)
     # env = gym.make("simple-base-v0", apply_api_compatibility=True, gui=False)
     agent = DQN_Solver(env)
     agent.policy_network.load_state_dict(torch.load("policy_network.pkl"))

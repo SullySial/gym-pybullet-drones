@@ -31,7 +31,8 @@ class SimpleBase(gym.Env):
                  record=False,
                  obstacles=False,
                  user_debug_gui=True,
-                 output_folder='results'
+                 output_folder='results',
+                 gravity = False
                  ):
         """Initialization of a generic aviary environment.
 
@@ -95,6 +96,7 @@ class SimpleBase(gym.Env):
         self.USER_DEBUG = user_debug_gui
         self.URDF = self.DRONE_MODEL.value + ".urdf"
         self.OUTPUT_FOLDER = output_folder
+        self.GRAVITY_CHECK = gravity
         #### Load the drone properties from the .urdf file #########
         self.M, \
         self.L, \
@@ -270,7 +272,8 @@ class SimpleBase(gym.Env):
         
     def apply_action(self, action):
         # clipped_action = np.reshape(self._preprocessAction(action), (self.NUM_DRONES, 4))
-        clipped_action = self._preprocessAction(action)
+        if self.GRAVITY_CHECK == True:
+            clipped_action = self._preprocessAction(action)
         #### Repeat for as many as the aggregate physics steps #####
         for _ in range(self.PYB_STEPS_PER_CTRL):
             #### Update and store the drones kinematic info for certain
@@ -278,10 +281,13 @@ class SimpleBase(gym.Env):
             if self.PYB_STEPS_PER_CTRL > 1 and self.PHYSICS in [Physics.DYN, Physics.PYB_GND, Physics.PYB_DRAG, Physics.PYB_DW, Physics.PYB_GND_DRAG_DW]:
                 self._updateAndStoreKinematicInformation()
             #### Step the simulation using the desired physics update ##
-            for i in range (self.NUM_DRONES):
-                if self.PHYSICS == Physics.PYB:
-                    # self._physics(clipped_action[i, :], i)
-                    self._physics(clipped_action, i)
+            if self.GRAVITY_CHECK == True:
+                for i in range (self.NUM_DRONES):
+                    if self.PHYSICS == Physics.PYB:
+                        # self._physics(clipped_action[i, :], i)
+                        self._physics(clipped_action, i)
+            else:
+                self._preprocessActionSimple(action)
             #### PyBullet computes the new state ###
             p.stepSimulation(physicsClientId=self.CLIENT)
             #### Buffer with brake action ####
@@ -291,7 +297,94 @@ class SimpleBase(gym.Env):
             # p.stepSimulation(physicsClientId=self.CLIENT)
 
     ################################################################################
-        
+
+    def _preprocessActionSimple(self,
+                                action
+                                ):
+        """Pre-processes the action passed to `.step()` into direct forces on the drone link.
+
+        Parameter `action` is processed differenly for each of the different
+        action types: the input to n-th drone, `action[n]` can be of length
+        1, 3, or 4, and represent RPMs, desired thrust and torques, or the next
+        target position to reach using PID control.
+
+        Parameter `action` is processed differenly for each of the different
+        action types: `action` can be of length 1, 3, or 4 and represent
+        RPMs, desired thrust and torques, the next target position to reach
+        using PID control, a desired velocity vector, etc.
+
+        Parameters
+        ----------
+        action : ndarray
+            The input action for each drone, to be translated into RPMs.
+
+        """
+        if action[0] !=0:
+            value = action[0]
+            if value == 1:
+                p.applyExternalForce(self.DRONE_IDS[0],
+                                    -1,
+                                    forceObj=[0.5, 0, 0],
+                                    posObj=[0, 0, 0],
+                                    flags=p.LINK_FRAME,
+                                    physicsClientId=self.CLIENT
+                                    )
+            else:
+                p.applyExternalForce(self.DRONE_IDS[0],
+                                    -1,
+                                    forceObj=[-0.5, 0, 0],
+                                    posObj=[0, 0, 0],
+                                    flags=p.LINK_FRAME,
+                                    physicsClientId=self.CLIENT
+                                    )
+        elif action[1] !=0:
+            value = action[0]
+            if value == 1:
+                p.applyExternalForce(self.DRONE_IDS[0],
+                                    -1,
+                                    forceObj=[0, 0.5, 0],
+                                    posObj=[0, 0, 0],
+                                    flags=p.LINK_FRAME,
+                                    physicsClientId=self.CLIENT
+                                    )
+            else:
+                p.applyExternalForce(self.DRONE_IDS[0],
+                                    -1,
+                                    forceObj=[0, -0.5, 0],
+                                    posObj=[0, 0, 0],
+                                    flags=p.LINK_FRAME,
+                                    physicsClientId=self.CLIENT
+                                    )
+        elif action[2] !=0:
+            value = action[0]
+            if value == 1:
+                p.applyExternalForce(self.DRONE_IDS[0],
+                                    -1,
+                                    forceObj=[0, 0, 0.5],
+                                    posObj=[0, 0, 0],
+                                    flags=p.LINK_FRAME,
+                                    physicsClientId=self.CLIENT
+                                    )
+            else:
+                p.applyExternalForce(self.DRONE_IDS[0],
+                                    -1,
+                                    forceObj=[0, 0, -0.5],
+                                    posObj=[0, 0, 0],
+                                    flags=p.LINK_FRAME,
+                                    physicsClientId=self.CLIENT
+                                    )
+        elif action == [0,0,0]:
+            p.applyExternalForce(self.DRONE_IDS[0],
+                                    -1,
+                                    forceObj=[0, 0, 0],
+                                    posObj=[0, 0, 0],
+                                    flags=p.LINK_FRAME,
+                                    physicsClientId=self.CLIENT
+                                    )
+        else:
+            print("[WARNING] no RPM chosen")
+            return False
+
     def _preprocessAction(self,
                           action
                           ):
@@ -563,11 +656,11 @@ class SimpleBase(gym.Env):
         
         # Add a bonus when target is reached
         if target_distance < 0.9:
-            ret += 50
+            ret += 1000
             print("[INFO] Reached Target")
 
         # Add the tilt penalty to the reward
-        ret -= tilt_penalty
+        # ret -= tilt_penalty
 
         return ret
     
@@ -661,7 +754,11 @@ class SimpleBase(gym.Env):
         if self.PHYSICS == Physics.DYN:
             self.rpy_rates = np.zeros((self.NUM_DRONES, 3))
         #### Set PyBullet's parameters #############################
-        p.setGravity(0, 0, -self.G, physicsClientId=self.CLIENT)
+        if self.GRAVITY_CHECK == True:
+            p.setGravity(0, 0, -self.G, physicsClientId=self.CLIENT)
+        else:
+            p.setGravity(0, 0, 0, physicsClientId=self.CLIENT)
+        
         p.setRealTimeSimulation(0, physicsClientId=self.CLIENT)
         p.setTimeStep(self.PYB_TIMESTEP, physicsClientId=self.CLIENT)
         p.setAdditionalSearchPath(pybullet_data.getDataPath(), physicsClientId=self.CLIENT)
