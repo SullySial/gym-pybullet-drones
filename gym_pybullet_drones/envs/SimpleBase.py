@@ -16,6 +16,9 @@ from gymnasium import spaces
 from gym_pybullet_drones.utils.enums import DroneModel, Physics, ImageType
 from gym_pybullet_drones.assets.goal import Goal
 
+RENDER_HEIGHT = 720
+RENDER_WIDTH = 960
+
 class SimpleBase(gym.Env):
     """Base class for "drone DQN" Gym environments."""
 
@@ -67,13 +70,15 @@ class SimpleBase(gym.Env):
 
         """
         #### Targets (Changeable) #############################################
-        self.TARGET_POS = np.array([2,2,2]) #### <--- Here's the line that indicates goal position (in this case, I changed x=1, y=2, z=3 for drone)
+        self.TARGET_POS = np.array([0,0,0]) #### <--- Here's the line that indicates goal position (in this case, I changed x=1, y=2, z=3 for drone)
         self.TARGET_ORIENTATION = np.array([0,0,0])
-        self.EPISODE_LEN_SEC = 20            #### <--- Change the length of the episode in seconds 
+        self.EPISODE_LEN_SEC = 2000            #### <--- Change the length of the episode in seconds 
         self.LOG_ANGULAR_VELOCITY = np.zeros((1, 3))
         self.LOG_RPMS = np.zeros((1, 4))
         self.goal_object = None
         self.goal = None
+        self._timeStep = 0.01
+        self._actionRepeat = 50
         #### Constants #############################################
         self.G = 9.8
         self.RAD2DEG = 180/np.pi
@@ -254,17 +259,27 @@ class SimpleBase(gym.Env):
         z = up[action]
         action = [x, y, z]
         self.apply_action(action)
-        #### Update and store the drones kinematic information #####
-        self._updateAndStoreKinematicInformation()
-        #### Prepare the return values #############################
-        # obs = self._computeObs()
-        obs = self._computeExtendedObs()
+        for i in range(self._actionRepeat):
+            p.stepSimulation(physicsClientId=self.CLIENT)
+            if self.GUI:
+                time.sleep(self._timeStep)
+            #### Update and store the drones kinematic information #####
+            self._updateAndStoreKinematicInformation()
+            #### Prepare the return values #############################
+            # obs = self._computeObs()
+            obs = self._computeExtendedObs()
+            if self._computeTerminated():
+                # terminated = True
+                break
+
+            self.step_counter = self.step_counter + (1 * self.PYB_STEPS_PER_CTRL)
+
         reward = self._computeReward()
         terminated = self._computeTerminated()
         # truncated = self._computeTruncated()
         info = self._computeInfo()
         #### Advance the step counter ##############################
-        self.step_counter = self.step_counter + (1 * self.PYB_STEPS_PER_CTRL)
+        # self.step_counter = self.step_counter + (1 * self.PYB_STEPS_PER_CTRL)
         return obs, reward, terminated, dict()
 
 
@@ -289,7 +304,7 @@ class SimpleBase(gym.Env):
             else:
                 self._preprocessActionSimple(action)
             #### PyBullet computes the new state ###
-            p.stepSimulation(physicsClientId=self.CLIENT)
+            # p.stepSimulation(physicsClientId=self.CLIENT)
             #### Buffer with brake action ####
             # action_buffer = [0,0,0]
             # clipped_action_buffer = self._preprocessAction(action_buffer)
@@ -324,7 +339,7 @@ class SimpleBase(gym.Env):
             if value == 1:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0.5, 0, 0],
+                                    forceObj=[1.2, 0, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -332,17 +347,17 @@ class SimpleBase(gym.Env):
             else:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[-0.5, 0, 0],
+                                    forceObj=[-1.2, 0, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
                                     )
         elif action[1] !=0:
-            value = action[0]
+            value = action[1]
             if value == 1:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, 0.5, 0],
+                                    forceObj=[0, 1.2, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -350,29 +365,31 @@ class SimpleBase(gym.Env):
             else:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, -0.5, 0],
+                                    forceObj=[0, -1.2, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
                                     )
         elif action[2] !=0:
-            value = action[0]
+            value = action[2]
             if value == 1:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, 0, 0.5],
+                                    forceObj=[0, 0, 1.2],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
                                     )
+                # print("FLYING")
             else:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, 0, -0.5],
+                                    forceObj=[0, 0, -1.2],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
                                     )
+                
         elif action == [0,0,0]:
             p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
@@ -601,7 +618,8 @@ class SimpleBase(gym.Env):
         goalPosInDrone, goalOrnInDrone = p.multiplyTransforms(invDronePos, invDroneOrn, goalpos, goalorn)
         # goal_pos_relative = [self.TARGET_POS[i] - state[i] for i in range(3)]
         # observation = [goal_pos_relative[0], goal_pos_relative[1], goal_pos_relative[2]]
-        observation = [goalPosInDrone[0], goalPosInDrone[1], goalPosInDrone[2]]
+        goalEulOrnInDrone = p.getEulerFromQuaternion(goalOrnInDrone)
+        observation = [goalPosInDrone[0], goalPosInDrone[1], goalPosInDrone[2], goalEulOrnInDrone[0], goalEulOrnInDrone[1], goalEulOrnInDrone[2]]
         return observation
         
     ################################################################################
@@ -642,21 +660,21 @@ class SimpleBase(gym.Env):
         target_distance = np.linalg.norm(self.TARGET_POS - state[0:3])
         
         # Calculate tilt angle (assuming roll and pitch angles are stored in state[6:8])
-        roll_angle = state[7]
-        pitch_angle = state[8]
-        tilt_angle = np.sqrt(roll_angle ** 2 + pitch_angle ** 2)
+        # roll_angle = state[7]
+        # pitch_angle = state[8]
+        # tilt_angle = np.sqrt(roll_angle ** 2 + pitch_angle ** 2)
 
-        max_allowed_tilt_angle = np.radians(45)
-        tilt_penalty_factor = 10
+        # max_allowed_tilt_angle = np.radians(45)
+        # tilt_penalty_factor = 10
         # Penalize for excessive tilt angle
-        tilt_penalty = max(0, tilt_angle - max_allowed_tilt_angle) * tilt_penalty_factor
+        # tilt_penalty = max(0, tilt_angle - max_allowed_tilt_angle) * tilt_penalty_factor
         
         # Reward based on distance to target
-        ret = -target_distance
+        ret = -target_distance / 3
         
         # Add a bonus when target is reached
-        if target_distance < 0.9:
-            ret += 1000
+        if target_distance < 1:
+            ret = 100
             print("[INFO] Reached Target")
 
         # Add the tilt penalty to the reward
@@ -676,11 +694,11 @@ class SimpleBase(gym.Env):
 
         """
         state = self._getDroneStateVector(0)
-        if np.linalg.norm(self.TARGET_POS-state[0:3]) < 0.9: # < --- Could change to higher number
+        if np.linalg.norm(self.TARGET_POS-state[0:3]) < 1: # < --- Could change to higher number
             return True
         else:
-            truncated = self._computeTruncated()
-            return truncated
+            # truncated = self._computeTruncated()
+            return self._computeTimerEnd()
         
     ################################################################################
     
@@ -700,13 +718,18 @@ class SimpleBase(gym.Env):
         #     return True
 
         if (np.linalg.norm(self.INIT_XYZS[0][0:2] - state[0:2]) >
-                np.linalg.norm(self.INIT_XYZS[0][0:2] - self.TARGET_POS[0:2]) + 3 or
+                np.linalg.norm(self.INIT_XYZS[0][0:2] - self.TARGET_POS[0:2]) + 2 or
                 state[2] > self.TARGET_POS[2] + 2 or
                 abs(state[7]) > 1.2 or abs(state[8]) > 1.2):
+            # print("[WARNING] Too far away")
             return True
-
+        else:
+            return self._computeTimerEnd()
         
-        if self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC:
+
+    def _computeTimerEnd(self):
+        if self.step_counter > self.EPISODE_LEN_SEC:
+            # print("[INFO] Ran out of time!")
             return True
         else:
             return False
@@ -771,6 +794,17 @@ class SimpleBase(gym.Env):
                                               flags = p.URDF_USE_INERTIA_FROM_FILE,
                                               physicsClientId=self.CLIENT
                                               ) for i in range(self.NUM_DRONES)])
+        x = (self.np_random.uniform(2, 4) if self.np_random.integers(2) else
+             self.np_random.uniform(-4, -2))
+        y = (self.np_random.uniform(2, 4) if self.np_random.integers(2) else
+             self.np_random.uniform(-4, -2))
+        # z = self.np_random.uniform(2, 3)
+        z = self.np_random.uniform(2, 4)
+        
+
+        self.TARGET_POS = np.array([x,y,z])
+        
+        
         # Set goal to target coordinates
         self.goal = (self.TARGET_POS[0], self.TARGET_POS[1], self.TARGET_POS[2])
         # Visual element of the goal
@@ -926,8 +960,8 @@ class SimpleBase(gym.Env):
         #     obs_lower_bound = np.hstack([obs_lower_bound, np.array([[act_lo, act_lo, act_lo, act_lo]])])
         #     obs_upper_bound = np.hstack([obs_upper_bound, np.array([[act_hi, act_hi, act_hi, act_hi]])])
         observation_space = gym.spaces.box.Box(
-            low=np.array([-40, -40, -40], dtype=np.float32),
-            high=np.array([40, 40, 40], dtype=np.float32))
+            low=np.array([-40, -40, 0, -40, -40, -40], dtype=np.float32),
+            high=np.array([40, 40, 40, 40, 40, 40], dtype=np.float32))
         
         return observation_space
     
