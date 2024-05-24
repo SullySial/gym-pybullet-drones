@@ -54,12 +54,12 @@ DEFAULT_AGENTS = 2
 DEFAULT_MA = False
 PARALLEL_ENV = 4
 
-TRAIN = True  # if set to false will skip training, load the last saved model and use that for testing
+TRAIN = False  # if set to false will skip training, load the last saved model and use that for testing
 
 # Hyper parameters that will be used in the DQN algorithm
 
 # EPISODES = 2500                 # number of episodes to run the training for
-EPISODES = 5000
+EPISODES = 12000
 LEARNING_RATE = 0.00025         # the learning rate for optimising the neural network weights
 MEM_SIZE = 50000                # maximum size of the replay memory - will start overwritting values once this is exceed
 REPLAY_START_SIZE = 10000       # The amount of samples to fill the replay memory with before we start learning
@@ -161,7 +161,7 @@ class DQN_Solver:
             eps_threshold = 1.0
         # if we rolled a value lower than epsilon sample a random action
         if random.random() < eps_threshold:
-            return np.random.choice(np.array(range(7)), p=[0.6,0.05,0.07,0.07,0.07,0.07,0.07])    # sample random action with set priors (otherwise learning will take forever)
+            return np.random.choice(np.array(range(7)), p=[0.45,0.05,0.1,0.1,0.1,0.1,0.1])    # sample random action with set priors (otherwise learning will take forever)
 
         # otherwise policy network, Q, chooses action with highest estimated Q-value so far
         state = torch.tensor(observation).float().detach()
@@ -224,9 +224,9 @@ class DQN_Solver:
 
 def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True):
 
-    filename = os.path.join(output_folder, 'save-'+datetime.now().strftime("%m.%d.%Y_%H.%M.%S"))
-    if not os.path.exists(filename):
-        os.makedirs(filename+'/')
+    # filename = os.path.join(output_folder, 'save-'+datetime.now().strftime("%m.%d.%Y_%H.%M.%S"))
+    # if not os.path.exists(filename):
+    #     os.makedirs(filename+'/')
 
     # eval_env = SimpleBase(obs=DEFAULT_OBS, act=DEFAULT_ACT, gui=True)
     if TRAIN:
@@ -265,10 +265,13 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
                     agent.learn()
 
                 state = state_
+                # print("Reward Batch: ", episode_batch_score, " + ", reward)
                 episode_batch_score += reward
+                
                 episode_reward += reward
 
                 if done:
+                    # print("state: ",state,", reward: ", reward)
                     break
 
             episode_history.append(i)
@@ -300,12 +303,13 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
 
     while True:
         with torch.no_grad():
-            print("state: ", state)
+            # print("state: ", state)
             q_values = agent.policy_network(torch.tensor(state, dtype=torch.float32))
         action = torch.argmax(q_values).item() # select action with highest predicted q-value
-        print("action: ", action)
+        # print("action: ", action)
         state, reward, done, info = env.step(action)
-        env.render()
+        print("Reward: ", reward)
+        # env.render()
         time.sleep(1/30)
         if done:
             break
