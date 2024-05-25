@@ -79,6 +79,7 @@ class SimpleBase(gym.Env):
         self.goal = None
         self._timeStep = 0.01
         self._actionRepeat = 25
+        # self.prev_target_distance = 0
         #### Constants #############################################
         self.G = 9.8
         self.RAD2DEG = 180/np.pi
@@ -339,7 +340,7 @@ class SimpleBase(gym.Env):
             if value == 1:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[1, 0, 0],
+                                    forceObj=[1.2, 0, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -347,7 +348,7 @@ class SimpleBase(gym.Env):
             else:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[-1, 0, 0],
+                                    forceObj=[-1.2, 0, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -357,7 +358,7 @@ class SimpleBase(gym.Env):
             if value == 1:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, 1, 0],
+                                    forceObj=[0, 1.2, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -365,7 +366,7 @@ class SimpleBase(gym.Env):
             else:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, -1, 0],
+                                    forceObj=[0, -1.2, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -375,7 +376,7 @@ class SimpleBase(gym.Env):
             if value == 1:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, 0, 1],
+                                    forceObj=[0, 0, 1.2],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -384,7 +385,7 @@ class SimpleBase(gym.Env):
             else:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, 0, -1],
+                                    forceObj=[0, 0, -1.2],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -670,11 +671,25 @@ class SimpleBase(gym.Env):
         # tilt_penalty = max(0, tilt_angle - max_allowed_tilt_angle) * tilt_penalty_factor
         
         # Reward based on distance to target
-        ret = -target_distance / 6
+        # ret = -target_distance / 6
+
+        # Potential function (e.g., negative distance)
+        potential_reward = -target_distance / 3
+        
+        # Distance delta reward (difference in potential from the last step)
+        # prev_target_distance = getattr(self, 'prev_target_distance', target_distance)
+        # distance_delta_reward = (self.prev_target_distance - target_distance) * 10
+        # self.prev_target_distance = target_distance
+
+        # Penalize for excessive time taken
+        time_penalty = -0.5
+        
+        # Combine all rewards and penalties
+        ret = potential_reward + time_penalty
         
         # Add a bonus when target is reached
         if target_distance < 1:
-            ret = 100
+            ret += 50
             print("[INFO] Reached Target")
 
         # Add the tilt penalty to the reward
@@ -802,8 +817,9 @@ class SimpleBase(gym.Env):
         z = self.np_random.uniform(2, 4)
         
 
-        self.TARGET_POS = np.array([x,y,z])
-        
+        # self.TARGET_POS = np.array([x,y,z])
+        # state = self._getDroneStateVector(0)
+        # self.prev_target_distance = np.linalg.norm(self.TARGET_POS-np.array([0,0,0]))
         
         # Set goal to target coordinates
         self.goal = (self.TARGET_POS[0], self.TARGET_POS[1], self.TARGET_POS[2])
