@@ -78,7 +78,7 @@ class SimpleBase(gym.Env):
         self.goal_object = None
         self.goal = None
         self._timeStep = 0.01
-        self._actionRepeat = 50
+        self._actionRepeat = 25
         #### Constants #############################################
         self.G = 9.8
         self.RAD2DEG = 180/np.pi
@@ -339,7 +339,7 @@ class SimpleBase(gym.Env):
             if value == 1:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[1.2, 0, 0],
+                                    forceObj=[1, 0, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -347,7 +347,7 @@ class SimpleBase(gym.Env):
             else:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[-1.2, 0, 0],
+                                    forceObj=[-1, 0, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -357,7 +357,7 @@ class SimpleBase(gym.Env):
             if value == 1:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, 1.2, 0],
+                                    forceObj=[0, 1, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -365,7 +365,7 @@ class SimpleBase(gym.Env):
             else:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, -1.2, 0],
+                                    forceObj=[0, -1, 0],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -375,7 +375,7 @@ class SimpleBase(gym.Env):
             if value == 1:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, 0, 1.2],
+                                    forceObj=[0, 0, 1],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -384,7 +384,7 @@ class SimpleBase(gym.Env):
             else:
                 p.applyExternalForce(self.DRONE_IDS[0],
                                     -1,
-                                    forceObj=[0, 0, -1.2],
+                                    forceObj=[0, 0, -1],
                                     posObj=[0, 0, 0],
                                     flags=p.LINK_FRAME,
                                     physicsClientId=self.CLIENT
@@ -670,7 +670,7 @@ class SimpleBase(gym.Env):
         # tilt_penalty = max(0, tilt_angle - max_allowed_tilt_angle) * tilt_penalty_factor
         
         # Reward based on distance to target
-        ret = -target_distance / 3
+        ret = -target_distance / 6
         
         # Add a bonus when target is reached
         if target_distance < 1:
