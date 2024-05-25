@@ -308,7 +308,7 @@ def run(multiagent=DEFAULT_MA, output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_
         action = torch.argmax(q_values).item() # select action with highest predicted q-value
         # print("action: ", action)
         state, reward, done, info = env.step(action)
-        print("Reward: ", reward)
+        print("Reward: ", reward," Action: ", action)
         # env.render()
         time.sleep(1/30)
         if done:
