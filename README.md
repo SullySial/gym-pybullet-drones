@@ -30,7 +30,7 @@ git clone git@github.com:SullySial/gym-pybullet-drones.git
 cd gym-pybullet-drones/
 ```
 
-2. Create and activate a Conda environment on conda terminal:
+2. Create and activate a Conda environment:
 
 ```bash
 conda create -n drones python=3.10
