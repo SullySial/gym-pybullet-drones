@@ -2,6 +2,7 @@
 
 [![Watch the Video](https://img.youtube.com/vi/743vS8l7gqQ/0.jpg)](https://www.youtube.com/watch?v=743vS8l7gqQ)
 
+Click above to see a short video overview of this project!
 
 ## Overview
 
