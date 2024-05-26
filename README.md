@@ -1,5 +1,7 @@
 # Drone Reinforcement Learning Environment
 
+[![Watch the video](https://img.youtube.com/vi/743vS8l7gqQ/maxresdefault.jpg)](https://youtu.be/743vS8l7gqQ)
+
 ## Overview
 
 This repository is a fork of the original Gym PyBullet Drones, updated with an additional script and a new environment for reinforcement learning with a single agent drone. Original reinforcement learning scripts were designed for a drone to hover consistently at a given Z coordinate. This fork allows for additional movement of the drone - moving in X, Y, Z locations. It also simplifies some aspects to focus primarily on reinforcement learning.
