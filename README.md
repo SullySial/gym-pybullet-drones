@@ -1,6 +1,7 @@
 # Drone Reinforcement Learning Environment
 
-[![Watch the video](https://img.youtube.com/vi/743vS8l7gqQ/maxresdefault.jpg)](https://youtu.be/743vS8l7gqQ)
+[![Watch the Video](https://img.youtube.com/vi/743vS8l7gqQ/0.jpg)](https://www.youtube.com/watch?v=743vS8l7gqQ)
+
 
 ## Overview
 
